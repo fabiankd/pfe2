@@ -1,13 +1,12 @@
 import time
 import warnings
 import xml.etree.ElementTree as ET
-
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import r2_score
 from scipy.optimize import curve_fit, optimize
-from lmfit import minimize, Parameters, Parameter, report_fit
-import sympy
+import lmfit
+import scipy
 
 tree = ET.parse('/Users/fabiankading/PycharmProjects/pr2/HY202103_D08_02_LION1_DCM_LMZC.xml')
 root = tree.getroot()
@@ -33,8 +32,8 @@ current_y = np.array(current)
 
 current_y = [abs(i) for i in current_y]
 print(current_y)
-voltagea = voltage_x[0:10]
-currenta = current_y[0:10]
+voltagea = voltage_x[0:9]
+currenta = current_y[0:9]
 p2a = np.poly1d(np.polyfit(voltagea, currenta, 8))
 
 x_werte = voltage_x[0:8]
@@ -178,24 +177,41 @@ x_werte_1 = x_daten[0:8]
 
 y_werte_1 = 2 * 10 ** -10 * x_werte ** 2 + 10 ** -10 * x_werte + 4 * 10 ** -11
 
-plt.plot(x_daten, y_daten, 'x',  label='Punkte')
+plt.plot(x_daten, y_daten, 'x', label='Punkte')
 plt.plot(x_werte_1, y_werte_1)
 
-def func(x, a, b, c):
-    return a * b**x + c
 
+# Optimize
+def monoExp(x, m, t, b):
+    return m * np.exp(-t * x) + b
+
+
+# p0 = (0.0, 1e-10, -0.25)
 
 x_werte_2 = x_daten[8:12]
 y_werte_2 = y_daten[8:12]
 
+params, cv = scipy.optimize.curve_fit(monoExp, x_werte_2, y_werte_2)
+m, t, b = params
+print(params)
 
 
-popt, pcov = curve_fit(func, x_werte_2, y_werte_2)
-print(popt)
+#lmfit
+mod = lmfit.models.ExponentialModel()
+pars = mod.guess(y_werte_2, x=x_werte_2)
+out = mod.fit(y_werte_2, pars, x=x_werte_2)
+
+print(out.fit_report())
+
+
+plt.plot(x_werte_2, y_werte_2, '.', label="data")
+plt.plot(x_werte_2, monoExp(x_werte_2, m, t, b), '--', label="fitted")
+plt.plot(x_werte_2, out.best_fit, label = 'best fit')
+plt.plot(x_werte_2, out.init_fit, label = 'inti fit')
+
 
 xFit = np.arange(0, 1, 0.001)
 
-plt.plot(xFit, func(xFit, *popt), 'r', label='test')
 plt.legend()
 plt.yscale('log')
 plt.show()
